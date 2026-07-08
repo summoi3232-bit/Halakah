@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>حلقة — تسيير حلقة التحفيظ</title>
+<meta name="description" content="تطبيق لتسيير حلقات تحفيظ القرآن الكريم: الحفظ، المراجعة، التلاوة النظرية، والتلاوة.">
+<meta name="theme-color" content="#1F4B3F">
+<link rel="manifest" href="./manifest.json">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="./icon.svg">
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<div class="app-shell">
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <h1 class="page-title">حلقة تحفيظ القرآن الكريم</h1>
+        <p class="page-sub">تسيير مسارات الحفظ، المراجعة، التلاوة النظرية، والتلاوة</p>
+      </div>
+      <div class="student-picker no-print">
+        <div class="avatar-badge" id="avatar-letter">؟</div>
+        <select id="student-select"></select>
+      </div>
+    </div>
+
+    <div id="view-root"></div>
+  </main>
+
+  <nav class="sidebar no-print">
+    <div class="brand">
+      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
+        <circle cx="15" cy="15" r="13" stroke="#B08D57" stroke-width="1.5"/>
+        <path d="M15 5v20M8 9l14 12M22 9L8 21" stroke="#B08D57" stroke-width="1" opacity=".5"/>
+      </svg>
+      <div>
+        <div class="brand-title">حلقة</div>
+        <div class="brand-sub">تسيير حلقات التحفيظ</div>
+      </div>
+    </div>
+
+    <button class="nav-btn active" data-view="dashboard"><span class="n">◆</span> لوحة المتابعة</button>
+    <button class="nav-btn" data-view="students"><span class="n">◆</span> المتعلّمون</button>
+    <button class="nav-btn" data-view="session"><span class="n">◆</span> تسجيل جلسة</button>
+    <button class="nav-btn" data-view="history"><span class="n">◆</span> السجلّ</button>
+    <button class="nav-btn" data-view="reports"><span class="n">◆</span> التقارير</button>
+    <button class="nav-btn" data-view="stats"><span class="n">◆</span> الإحصائيات</button>
+    <button class="nav-btn" data-view="backup"><span class="n">◆</span> النسخ الاحتياطي</button>
+
+    <div class="sidebar-foot">
+      <button class="ghost-btn" onclick="window.print()">🖨️ طباعة الصفحة الحالية</button>
+      <div class="brand-sub" style="text-align:center">جميع البيانات محفوظة على جهازك</div>
+    </div>
+  </nav>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="./app.js"></script>
+</body>
+</html>
