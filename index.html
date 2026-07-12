@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>حلقة — تسيير حلقة التحفيظ</title>
-<meta name="description" content="تطبيق لتسيير حلقات تحفيظ القرآن الكريم: الحفظ، المراجعة، التلاوة النظرية، والتلاوة.">
+<title>حلقة — المدرسة النموذجية النهضة بالقرآن الكريم</title>
+<meta name="description" content="تطبيق لتسيير حلقات تحفيظ القرآن الكريم بالمدرسة النموذجية النهضة بالقرآن الكريم: الحفظ، المراجعة، التلاوة النظرية، والتلاوة.">
 <meta name="theme-color" content="#1F4B3F">
 <link rel="manifest" href="./manifest.json">
 <link rel="icon" href="./icon.svg" type="image/svg+xml">
@@ -16,9 +16,18 @@
 <div class="app-shell">
   <main class="main">
     <div class="topbar">
-      <div>
-        <h1 class="page-title">حلقة تحفيظ القرآن الكريم</h1>
-        <p class="page-sub">تسيير مسارات الحفظ، المراجعة، التلاوة النظرية، والتلاوة</p>
+      <div style="display:flex;align-items:center;gap:12px">
+        <svg width="42" height="42" viewBox="0 0 40 40" fill="none" style="flex-shrink:0">
+          <circle cx="20" cy="20" r="18" stroke="#B08D57" stroke-width="1.5"/>
+          <path d="M20 10c-3 2-5 5-5 9s2 7 5 9c-5 0-9-4-9-9s4-9 9-9z" fill="#B08D57"/>
+          <path d="M20 24V16" stroke="#1F4B3F" stroke-width="1.3" stroke-linecap="round"/>
+          <path d="M13 25c1.5-1 4-1.5 7-1.2" stroke="#1F4B3F" stroke-width="1" fill="none" stroke-linecap="round"/>
+          <path d="M27 25c-1.5-1-4-1.5-7-1.2" stroke="#1F4B3F" stroke-width="1" fill="none" stroke-linecap="round"/>
+        </svg>
+        <div>
+          <h1 class="page-title" style="margin-bottom:2px">المدرسة النموذجية النهضة بالقرآن الكريم</h1>
+          <p class="page-sub">تسيير مسارات الحفظ، المراجعة، التلاوة النظرية، والتلاوة</p>
+        </div>
       </div>
       <div class="student-picker no-print">
         <div class="avatar-badge" id="avatar-letter">؟</div>
@@ -31,18 +40,22 @@
 
   <nav class="sidebar no-print">
     <div class="brand">
-      <svg width="30" height="30" viewBox="0 0 30 30" fill="none">
-        <circle cx="15" cy="15" r="13" stroke="#B08D57" stroke-width="1.5"/>
-        <path d="M15 5v20M8 9l14 12M22 9L8 21" stroke="#B08D57" stroke-width="1" opacity=".5"/>
+      <svg width="34" height="34" viewBox="0 0 40 40" fill="none">
+        <circle cx="20" cy="20" r="18" stroke="#B08D57" stroke-width="1.5"/>
+        <path d="M20 10c-3 2-5 5-5 9s2 7 5 9c-5 0-9-4-9-9s4-9 9-9z" fill="#B08D57"/>
+        <path d="M20 24V16" stroke="#1F4B3F" stroke-width="1.3" stroke-linecap="round"/>
+        <path d="M13 25c1.5-1 4-1.5 7-1.2" stroke="#1F4B3F" stroke-width="1" fill="none" stroke-linecap="round"/>
+        <path d="M27 25c-1.5-1-4-1.5-7-1.2" stroke="#1F4B3F" stroke-width="1" fill="none" stroke-linecap="round"/>
       </svg>
       <div>
-        <div class="brand-title">حلقة</div>
-        <div class="brand-sub">تسيير حلقات التحفيظ</div>
+        <div class="brand-title">المدرسة النموذجية</div>
+        <div class="brand-sub">النهضة بالقرآن الكريم</div>
       </div>
     </div>
 
     <button class="nav-btn active" data-view="dashboard"><span class="n">◆</span> لوحة المتابعة</button>
     <button class="nav-btn" data-view="students"><span class="n">◆</span> المتعلّمون</button>
+    <button class="nav-btn" data-view="groups"><span class="n">◆</span> الأفواج</button>
     <button class="nav-btn" data-view="session"><span class="n">◆</span> تسجيل جلسة</button>
     <button class="nav-btn" data-view="history"><span class="n">◆</span> السجلّ</button>
     <button class="nav-btn" data-view="reports"><span class="n">◆</span> التقارير</button>

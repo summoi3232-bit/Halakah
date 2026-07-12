@@ -13,6 +13,49 @@ const SURAHS = ["الفاتحة","البقرة","آل عمران","النساء"
 "القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر",
 "المسد","الإخلاص","الفلق","الناس"];
 
+// عدد آيات كل سورة برواية ورش عن نافع (العدّ المدني الأخير المعتمد في مصحف مجمع الملك فهد لطباعة المصحف الشريف برواية ورش)
+// الترتيب مطابق لمصفوفة SURAHS أعلاه (من الفاتحة إلى الناس) — الإجمالي 6214 آية
+const AYAH_COUNTS = [
+  7,285,200,175,122,167,206,76,130,109,
+  121,111,44,54,99,128,110,105,99,134,
+  111,76,119,62,77,226,95,88,69,59,
+  33,30,73,54,46,82,182,86,72,84,
+  53,50,89,56,36,34,39,29,18,45,
+  60,47,61,55,77,99,28,21,24,13,
+  14,11,11,18,12,12,31,52,52,44,
+  30,28,18,55,39,31,50,40,45,42,
+  29,19,36,25,22,17,19,26,32,20,
+  15,21,11,8,8,20,5,8,9,11,
+  10,8,3,9,5,5,6,3,6,3,
+  5,4,5,6
+];
+
+function ayahCountForSurah(surahName){
+  const idx = SURAHS.indexOf(surahName);
+  return idx>=0 ? AYAH_COUNTS[idx] : 286;
+}
+function ayahOptions(surahName, selected){
+  const max = ayahCountForSurah(surahName);
+  let opts = "";
+  const sel = String(selected||"1");
+  for(let i=1;i<=max;i++){
+    opts += `<option value="${i}" ${String(i)===sel?'selected':''}>${i}</option>`;
+  }
+  return opts;
+}
+function getByPath(path){
+  const parts = path.split(".");
+  let o = sessionDraft;
+  for(const p of parts) o = o[p];
+  return o;
+}
+function updSurahRange(prefix, which, value){
+  const o = getByPath(prefix);
+  o["surah"+which] = value;
+  o["ayah"+which] = 1;
+  render();
+}
+
 const TAJWEED_DETAILS = [
   {key:"makharij", label:"نقص في المخارج والصفات"},
   {key:"ikhtilas", label:"اختلاس في الحركات"},
@@ -30,9 +73,11 @@ function todayStr(){ return new Date().toISOString().slice(0,10); }
 function loadDB(){
   try{
     const raw = localStorage.getItem(DB_KEY);
-    if(!raw) return {students:[], sessions:[], activeStudent:null};
-    return JSON.parse(raw);
-  }catch(e){ return {students:[], sessions:[], activeStudent:null}; }
+    if(!raw) return {students:[], sessions:[], groups:[], activeStudent:null};
+    const db = JSON.parse(raw);
+    if(!db.groups) db.groups = [];
+    return db;
+  }catch(e){ return {students:[], sessions:[], groups:[], activeStudent:null}; }
 }
 function saveDB(){
   localStorage.setItem(DB_KEY, JSON.stringify(DB));
@@ -54,8 +99,8 @@ function toast(msg){
 }
 
 // ===================== الطلاب =====================
-function addStudent(name, age, level, birthDate, birthPlace){
-  const s = {id:uid(), name, age, level, birthDate, birthPlace, createdAt: todayStr()};
+function addStudent(name, age, level, birthDate, birthPlace, groupId){
+  const s = {id:uid(), name, age, level, birthDate, birthPlace, groupId: groupId||null, createdAt: todayStr()};
   DB.students.push(s);
   DB.activeStudent = s.id;
   saveDB();
@@ -80,6 +125,30 @@ function studentSessions(id){
   return DB.sessions.filter(s=>s.studentId===id).sort((a,b)=> a.date < b.date ? 1 : -1);
 }
 
+// ===================== الأفواج =====================
+function addGroup(name){
+  const g = {id:uid(), name};
+  DB.groups.push(g);
+  saveDB();
+  return g;
+}
+function updateGroup(id, name){
+  const g = DB.groups.find(g=>g.id===id);
+  if(!g) return;
+  g.name = name;
+  saveDB();
+}
+function deleteGroup(id){
+  DB.groups = DB.groups.filter(g=>g.id!==id);
+  DB.students.forEach(s=>{ if(s.groupId===id) s.groupId = null; });
+  saveDB();
+}
+function groupName(id){
+  if(!id) return "بدون فوج";
+  const g = DB.groups.find(g=>g.id===id);
+  return g ? g.name : "بدون فوج";
+}
+
 // ===================== الجلسات =====================
 function surahRangeLabel(o){
   if(!o || !o.surahFrom) return "—";
@@ -92,7 +161,7 @@ function evalChip(val, kind){
   if(!val) return '<span class="chip chip-mid">—</span>';
   const map = {
     "جيد":"chip-good", "جيدة":"chip-good",
-    "متوسط":"chip-mid",
+    "متوسط":"chip-mid", "متوسطة":"chip-mid",
     "ضعيف":"chip-bad", "ضعيفة":"chip-bad", "يعاد":"chip-bad", "يحتاج إعادة":"chip-bad"
   };
   return `<span class="chip ${map[val]||'chip-mid'}">${val}</span>`;
@@ -179,7 +248,7 @@ function render(){
     || `<option>لا يوجد متعلمون</option>`;
   document.getElementById("avatar-letter").textContent = student? student.name.trim()[0] : "؟";
 
-  if(!student && currentView!=="students"){
+  if(!student && currentView!=="students" && currentView!=="groups" && currentView!=="backup"){
     root.innerHTML = `<div class="card empty"><div class="big">📖</div>
       <h3>لا يوجد متعلم بعد</h3>
       <p>أضف أول متعلم في الحلقة للبدء بتسجيل الحفظ والمراجعة والتلاوة.</p>
@@ -190,6 +259,7 @@ function render(){
 
   if(currentView==="dashboard") return renderDashboard(root, student);
   if(currentView==="students") return renderStudents(root);
+  if(currentView==="groups") return renderGroups(root);
   if(currentView==="session") return renderSession(root, student);
   if(currentView==="history") return renderHistory(root, student);
   if(currentView==="reports") return renderReports(root, student);
@@ -212,6 +282,7 @@ function renderDashboard(root, student){
         <div><label>الاسم</label><div>${student.name}</div></div>
         <div><label>السن</label><div>${student.age||'—'}</div></div>
         <div><label>المستوى الدراسي</label><div>${student.level||'—'}</div></div>
+        <div><label>الفوج</label><div>${groupName(student.groupId)}</div></div>
         <div><label>تاريخ الميلاد</label><div>${student.birthDate||'—'}</div></div>
         <div><label>مكان الميلاد</label><div>${student.birthPlace||'—'}</div></div>
         <div><label>تاريخ الالتحاق</label><div>${student.createdAt}</div></div>
@@ -249,7 +320,7 @@ function renderSessionSummary(s){
     ${trackBadges(s)}
     <div class="grid g2">
       <div><span class="subhead"><span class="dot"></span>الحفظ</span>
-        ${s.hifz?.surahFrom? `<p>${surahRangeLabel(s.hifz)} ${evalChip(s.hifz.evaluation)}</p><p class="small-note">المقدار القادم: ${s.hifz.nextPortion||'—'}</p>` : '<p class="small-note">لم يسجَّل</p>'}
+        ${s.hifz?.surahFrom? `<p>${surahRangeLabel(s.hifz)} ${evalChip(s.hifz.evaluation)}</p><p class="small-note">الدرس القادم: ${s.hifz.next?.surahFrom? surahRangeLabel(s.hifz.next) : '—'}</p>` : '<p class="small-note">لم يسجَّل</p>'}
       </div>
       <div><span class="subhead"><span class="dot"></span>المراجعة</span>
         ${s.murajaa?.qareeb?.surahFrom? `<p>قريب: ${surahRangeLabel(s.murajaa.qareeb)} ${evalChip(s.murajaa.qareeb.evaluation)}</p>`:''}
@@ -281,6 +352,12 @@ function renderStudents(root){
         <div class="field"><label>المستوى الدراسي</label><input id="ns-level" placeholder="مثال: السنة الثالثة ابتدائي" value="${editing?.level||''}"></div>
         <div class="field"><label>تاريخ الميلاد</label><input id="ns-bdate" type="date" value="${editing?.birthDate||''}"></div>
         <div class="field"><label>مكان الميلاد</label><input id="ns-bplace" placeholder="مثال: الرباط" value="${editing?.birthPlace||''}"></div>
+        <div class="field"><label>الفوج</label>
+          <select id="ns-group">
+            <option value="">بدون فوج</option>
+            ${DB.groups.map(g=>`<option value="${g.id}" ${editing?.groupId===g.id?'selected':''}>${g.name}</option>`).join('')}
+          </select>
+        </div>
       </div>
       <div style="display:flex;gap:10px;margin-top:12px">
         <button class="btn btn-primary" onclick="onSaveStudent()">${editing? '💾 حفظ التعديلات' : 'إضافة المتعلم'}</button>
@@ -288,11 +365,22 @@ function renderStudents(root){
       </div>
     </div>
     <div class="card">
-      <h3><span class="dot"></span> قائمة المتعلمين (${DB.students.length})</h3>
-      ${DB.students.length? `<table><thead><tr><th>الاسم</th><th>السن</th><th>المستوى</th><th>تاريخ الميلاد</th><th>مكان الميلاد</th><th>الجلسات</th><th></th></tr></thead>
-      <tbody>${DB.students.map(s=>`
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:10px">
+        <h3 style="margin:0"><span class="dot"></span> قائمة المتعلمين (${DB.students.length})</h3>
+        <div style="display:flex;gap:8px;align-items:center" class="no-print">
+          <label class="small-note">تصفية حسب الفوج:</label>
+          <select onchange="groupFilter=this.value; render()">
+            <option value="" ${groupFilter===''?'selected':''}>الكل</option>
+            ${DB.groups.map(g=>`<option value="${g.id}" ${groupFilter===g.id?'selected':''}>${g.name}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      ${(()=>{ const list = groupFilter? DB.students.filter(s=>s.groupId===groupFilter) : DB.students;
+        return list.length? `<table><thead><tr><th>الاسم</th><th>السن</th><th>المستوى</th><th>الفوج</th><th>تاريخ الميلاد</th><th>مكان الميلاد</th><th>الجلسات</th><th></th></tr></thead>
+      <tbody>${list.map(s=>`
         <tr>
           <td>${s.name}</td><td>${s.age||'—'}</td><td>${s.level||'—'}</td>
+          <td>${groupName(s.groupId)}</td>
           <td>${s.birthDate||'—'}</td><td>${s.birthPlace||'—'}</td>
           <td>${studentSessions(s.id).length}</td>
           <td style="display:flex;gap:6px">
@@ -300,7 +388,7 @@ function renderStudents(root){
             <button class="btn btn-sm btn-gold" onclick="editingStudentId='${s.id}'; render(); window.scrollTo(0,0)">تعديل</button>
             <button class="btn btn-sm btn-danger" onclick="onDeleteStudent('${s.id}')">حذف</button>
           </td>
-        </tr>`).join('')}</tbody></table>` : `<div class="empty">لا يوجد متعلمون مسجّلون بعد.</div>`}
+        </tr>`).join('')}</tbody></table>` : `<div class="empty">لا يوجد متعلمون في هذه التصفية.</div>`; })()}
     </div>
   `;
 }
@@ -311,13 +399,14 @@ function onSaveStudent(){
   const level = document.getElementById("ns-level").value.trim();
   const birthDate = document.getElementById("ns-bdate").value;
   const birthPlace = document.getElementById("ns-bplace").value.trim();
+  const groupId = document.getElementById("ns-group").value || null;
   if(editingStudentId){
-    updateStudent(editingStudentId, {name, age, level, birthDate, birthPlace});
+    updateStudent(editingStudentId, {name, age, level, birthDate, birthPlace, groupId});
     toast("تم حفظ تعديلات المتعلم");
     editingStudentId = null;
     render();
   }else{
-    addStudent(name, age, level, birthDate, birthPlace);
+    addStudent(name, age, level, birthDate, birthPlace, groupId);
     toast("تمت إضافة المتعلم");
     switchView("dashboard");
   }
@@ -326,6 +415,59 @@ function onDeleteStudent(id){
   if(confirm("هل تريد حذف هذا المتعلم وجميع سجلاته؟ لا يمكن التراجع.")){
     if(editingStudentId===id) editingStudentId = null;
     deleteStudent(id);
+    render();
+  }
+}
+
+// ---------- الأفواج ----------
+let editingGroupId = null;
+let groupFilter = "";
+
+function renderGroups(root){
+  const editing = editingGroupId ? DB.groups.find(g=>g.id===editingGroupId) : null;
+  root.innerHTML = `
+    <div class="card">
+      <h3><span class="dot"></span> ${editing? 'تعديل الفوج: '+editing.name : 'إضافة فوج جديد'}</h3>
+      <div class="grid g3">
+        <div class="field"><label>اسم الفوج</label><input id="ng-name" placeholder="مثال: الفوج الأول" value="${editing?.name||''}"></div>
+      </div>
+      <div style="display:flex;gap:10px;margin-top:12px">
+        <button class="btn btn-primary" onclick="onSaveGroup()">${editing? '💾 حفظ التعديلات' : 'إضافة الفوج'}</button>
+        ${editing? `<button class="btn btn-line" onclick="editingGroupId=null; render()">إلغاء التعديل</button>` : ''}
+      </div>
+    </div>
+    <div class="card">
+      <h3><span class="dot"></span> الأفواج (${DB.groups.length})</h3>
+      ${DB.groups.length? `<table><thead><tr><th>اسم الفوج</th><th>عدد المتعلمين</th><th></th></tr></thead>
+      <tbody>${DB.groups.map(g=>`
+        <tr>
+          <td>${g.name}</td>
+          <td>${DB.students.filter(s=>s.groupId===g.id).length}</td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-sm btn-gold" onclick="editingGroupId='${g.id}'; render(); window.scrollTo(0,0)">تعديل</button>
+            <button class="btn btn-sm btn-danger" onclick="onDeleteGroup('${g.id}')">حذف</button>
+          </td>
+        </tr>`).join('')}</tbody></table>` : `<div class="empty">لا توجد أفواج بعد. أضف فوجًا ثم اربط المتعلمين به من صفحة "المتعلّمون".</div>`}
+    </div>
+  `;
+}
+function onSaveGroup(){
+  const name = document.getElementById("ng-name").value.trim();
+  if(!name) return toast("أدخل اسم الفوج أولاً");
+  if(editingGroupId){
+    updateGroup(editingGroupId, name);
+    toast("تم حفظ تعديلات الفوج");
+    editingGroupId = null;
+  }else{
+    addGroup(name);
+    toast("تمت إضافة الفوج");
+  }
+  render();
+}
+function onDeleteGroup(id){
+  if(confirm("حذف هذا الفوج؟ سيبقى المتعلمون المرتبطون به بدون فوج.")){
+    if(editingGroupId===id) editingGroupId = null;
+    deleteGroup(id);
     render();
   }
 }
@@ -344,13 +486,14 @@ function startNewSession(){
   sessionDraft = {
     id: uid(), studentId: student.id, date: todayStr(), attendance: "حاضر",
     tracks: {hifz:true, murajaa:true, nazariyyah:true, talawah:true},
-    hifz: {surahFrom:SURAHS[0], ayahFrom:"", surahTo:"", ayahTo:"", evaluation:"", nextPortion:""},
+    hifz: {surahFrom:SURAHS[0], ayahFrom:1, surahTo:SURAHS[0], ayahTo:1, evaluation:"",
+      next: {surahFrom:SURAHS[0], ayahFrom:1, surahTo:SURAHS[0], ayahTo:1}},
     murajaa: {
-      qareeb: {surahFrom:SURAHS[0], ayahFrom:"", surahTo:"", ayahTo:"", evaluation:""},
-      baeed: {surahFrom:SURAHS[0], ayahFrom:"", surahTo:"", ayahTo:"", evaluation:""}
+      qareeb: {surahFrom:SURAHS[0], ayahFrom:1, surahTo:SURAHS[0], ayahTo:1, evaluation:""},
+      baeed: {surahFrom:SURAHS[0], ayahFrom:1, surahTo:SURAHS[0], ayahTo:1, evaluation:""}
     },
     talawahNazariyyah: {matn:"تحفة الأطفال", baytFrom:"", baytTo:"", tajweedNoteTitle:""},
-    talawah: {surahFrom:SURAHS[0], ayahFrom:"", surahTo:"", ayahTo:"", evaluation:"", details:{}}
+    talawah: {surahFrom:SURAHS[0], ayahFrom:1, surahTo:SURAHS[0], ayahTo:1, evaluation:"", details:{}}
   };
   sessionTab = "hifz";
   switchView("session");
@@ -418,14 +561,14 @@ function trackToggleHeader(key, title){
 function rangeFields(prefix, obj){
   return `
     <div class="grid g4">
-      <div class="field"><label>من سورة</label><select onchange="upd('${prefix}.surahFrom', this.value)">${surahOptions(obj.surahFrom)}</select></div>
-      <div class="field"><label>من آية</label><input value="${obj.ayahFrom||''}" oninput="upd('${prefix}.ayahFrom', this.value)"></div>
-      <div class="field"><label>إلى سورة</label><select onchange="upd('${prefix}.surahTo', this.value)">${surahOptions(obj.surahTo)}</select></div>
-      <div class="field"><label>إلى آية</label><input value="${obj.ayahTo||''}" oninput="upd('${prefix}.ayahTo', this.value)"></div>
+      <div class="field"><label>من سورة</label><select onchange="updSurahRange('${prefix}','From', this.value)">${surahOptions(obj.surahFrom)}</select></div>
+      <div class="field"><label>من آية</label><select onchange="upd('${prefix}.ayahFrom', this.value)">${ayahOptions(obj.surahFrom, obj.ayahFrom)}</select></div>
+      <div class="field"><label>إلى سورة</label><select onchange="updSurahRange('${prefix}','To', this.value)">${surahOptions(obj.surahTo)}</select></div>
+      <div class="field"><label>إلى آية</label><select onchange="upd('${prefix}.ayahTo', this.value)">${ayahOptions(obj.surahTo, obj.ayahTo)}</select></div>
     </div>`;
 }
 function evalGroup(prefix, options, current){
-  const cls = {"جيد":"sel-good","جيدة":"sel-good","متوسط":"sel-mid","ضعيف":"sel-bad","ضعيفة":"sel-bad","يعاد":"sel-bad","يحتاج إعادة":"sel-bad"};
+  const cls = {"جيد":"sel-good","جيدة":"sel-good","متوسط":"sel-mid","متوسطة":"sel-mid","ضعيف":"sel-bad","ضعيفة":"sel-bad","يعاد":"sel-bad","يحتاج إعادة":"sel-bad"};
   return `<div class="eval-group">${options.map(o=>`<div class="eval-opt ${current===o?cls[o]:''}" onclick="upd('${prefix}', '${o}')">${o}</div>`).join('')}</div>`;
 }
 
@@ -434,13 +577,13 @@ function hifzForm(d){
   return `
     ${trackToggleHeader('hifz','مقدار الحفظ (الاستظهار)')}
     <div class="${on?'':'track-off'}">
+      <div class="subhead"><span class="dot"></span>الدرس المقرر (حفظ اليوم)</div>
       ${rangeFields('hifz', d.hifz)}
       <div class="subhead"><span class="dot"></span>تقييم الحفظ</div>
       ${evalGroup('hifz.evaluation', ["جيد","متوسط","ضعيف يعاد"], d.hifz.evaluation)}
       <hr class="sep">
-      <div class="field"><label>مقدار الحفظ للدرس القادم</label>
-        <textarea rows="2" oninput="upd('hifz.nextPortion', this.value)" placeholder="مثال: من سورة البقرة آية ١ إلى آية ١٠">${d.hifz.nextPortion||''}</textarea>
-      </div>
+      <div class="subhead"><span class="dot"></span>الدرس القادم (مقدار الحفظ للدرس المقبل)</div>
+      ${rangeFields('hifz.next', d.hifz.next)}
     </div>
   `;
 }
@@ -489,7 +632,7 @@ function talawahForm(d){
     <div class="${on?'':'track-off'}">
       ${rangeFields('talawah', d.talawah)}
       <div class="subhead"><span class="dot"></span>تقييم التلاوة</div>
-      ${evalGroup('talawah.evaluation', ["جيدة","ضعيفة"], d.talawah.evaluation)}
+      ${evalGroup('talawah.evaluation', ["جيدة","متوسطة","ضعيفة"], d.talawah.evaluation)}
       <hr class="sep">
       <div class="subhead"><span class="dot"></span>تفصيل الملاحظات</div>
       <div class="checks">
@@ -563,8 +706,10 @@ function renderReports(root, student){
   const label = {day:"يومي", week:"أسبوعي", month:"شهري"}[reportRange];
   root.innerHTML = `
     <div class="print-header">
-      <div><h2 style="margin:0">تقرير ${label} — حلقة تحفيظ القرآن الكريم</h2>
-      <div class="small-note">المتعلم: ${student.name} · السن: ${student.age||'—'} · المستوى: ${student.level||'—'}</div></div>
+      <div>
+      <div class="small-note" style="font-weight:700">المدرسة النموذجية النهضة بالقرآن الكريم</div>
+      <h2 style="margin:4px 0 0">تقرير ${label} — حلقة تحفيظ القرآن الكريم</h2>
+      <div class="small-note">المتعلم: ${student.name} · السن: ${student.age||'—'} · المستوى: ${student.level||'—'} · الفوج: ${groupName(student.groupId)}</div></div>
       <div class="small-note">تاريخ الإصدار: ${todayStr()}</div>
     </div>
     <div class="tabs no-print">
@@ -608,7 +753,7 @@ function renderStats(root, student){
         <div class="bar-val">${v}</div>
       </div>`).join('') || '<div class="small-note">لا بيانات</div>';
   }
-  const colors = {"جيد":"var(--good)","جيدة":"var(--good)","متوسط":"var(--gold)","ضعيف":"var(--bad)","ضعيفة":"var(--bad)","ضعيف يعاد":"var(--bad)","ضعيف يحتاج إعادة":"var(--bad)"};
+  const colors = {"جيد":"var(--good)","جيدة":"var(--good)","متوسط":"var(--gold)","متوسطة":"var(--gold)","ضعيف":"var(--bad)","ضعيفة":"var(--bad)","ضعيف يعاد":"var(--bad)","ضعيف يحتاج إعادة":"var(--bad)"};
   root.innerHTML = `
     <div class="grid g3">
       <div class="card"><h3><span class="dot"></span>الحفظ</h3>${bars(st.evalCount.hifz, colors)}</div>
